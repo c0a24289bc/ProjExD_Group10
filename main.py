@@ -23,6 +23,7 @@ BLACK  = (0, 0, 0)
 RED    = (255, 50, 50)     # 通常こうかとん
 BLUE   = (50, 50, 255)     # タワー
 YELLOW = (255, 255, 0)     # 弾
+PURPLE = (180, 0, 255)     #エリートカラー
 
 # 【担当C, D, E】ここに各機能で使用する色を追加してください
 # ORANGE = (255, 165, 0)
@@ -36,7 +37,6 @@ TILE_SPAWN = 3
 
 # ゲーム状態
 STATE_PLAY = 1
-# 【担当A】ここに STATE_GAMEOVER を追加してください
 
 # ====================================================
 #  2. クラス定義エリア
@@ -74,17 +74,13 @@ class GameManager:
                 self.fever_timer = 0
                 print("--- FEVER TIME END! ---")
 
+    def update(self):
+        pass
+
+    
     def check_gameover(self):
         if self.life <= 0:
             print("Game Over! (Logic not implemented yet)")
-            # 【担当A】ここで state を STATE_GAMEOVER に変更してください
-
-    # 【担当A】ここに reset_game(self, ...) メソッドを追加してください
-    # def reset_game(self, ...):
-    #     ...
-
-    # 【担当E】ここに activate_fever(self) メソッドを追加してください
-
 
 class MapManager:
     def __init__(self):
@@ -127,6 +123,7 @@ class MapManager:
             grass_color = (255, 215, 0)  # フィーバー中の背景色（金色）
         else:
             grass_color = (0, 100, 0)
+
         screen.fill(BLACK) 
     
         for r, row in enumerate(self.map_data):
@@ -148,8 +145,7 @@ class MapManager:
             return self.map_data[r][c] == TILE_GRASS
         return False
     
-    # 【担当C】ここに is_path(self, x, y) メソッドを追加してください
-    # トラップ設置判定に使います
+
     def is_path(self, x, y):
         c = x // TILE_SIZE
         r = y // TILE_SIZE
@@ -162,18 +158,18 @@ class Koukaton(pygame.sprite.Sprite):
     """
     敵キャラクタークラス
     """
-    def __init__(self, waypoints):
-        # 【担当D】引数に is_elite を追加し、エリートならステータスを変える処理を記述してください
+    def __init__(self, waypoints, is_elite = False):
+        
         super().__init__()
         self.image = pygame.Surface((20, 20))
-        self.image.fill(RED) # 【担当D】エリートなら色を変える
+        self.image.fill(PURPLE if is_elite else RED) # エリートなら色を変える
         self.rect = self.image.get_rect()
         
         self.waypoints = waypoints
         self.wp_index = 0
-        self.speed = 2   # 【担当D】エリートなら速くする
-        self.hp = 30     # 【担当D】エリートなら体力を増やす
-        self.value = 10  # 【担当D】エリートなら撃破報酬を増やす
+        self.speed = 3 if is_elite else 2   # エリートなら速くする
+        self.hp = 60 if is_elite else 30     # エリートなら体力を増やす
+        self.value = 30 if is_elite else 10  # エリートなら撃破報酬を増やす
 
         if waypoints:
             self.rect.center = waypoints[0]
@@ -196,10 +192,6 @@ class Koukaton(pygame.sprite.Sprite):
             self.kill()
 
 
-# 【担当C】ここに class Trap(pygame.sprite.Sprite): を追加してください
-# 敵と衝突したらダメージを与える処理などを書きます
-
-
 class Tower(pygame.sprite.Sprite):
     """
     タワークラス
@@ -213,8 +205,6 @@ class Tower(pygame.sprite.Sprite):
         self.range = 150
         self.cooldown = 30
         self.timer = 0
-        
-        # 【担当B】ここにレベルなどの強化用変数を追加してください
 
     def update(self, enemy_group, bullet_group, is_fever=False):
         # 【担当E】is_feverフラグを受け取り、フィーバー中はクールダウンを短くしてください
@@ -222,7 +212,7 @@ class Tower(pygame.sprite.Sprite):
         current_cooldown = self.cooldown
         # フィーバー中はクールダウンを短縮 (例: 半分にする)
         if is_fever:
-            current_cooldown = self.cooldown // 2
+            current_cooldown = self.cooldown // 2            
         self.timer += 1
         if self.timer >= current_cooldown:
             nearest_enemy = None
@@ -238,8 +228,6 @@ class Tower(pygame.sprite.Sprite):
                 new_bullet = Bullet(self.rect.center, nearest_enemy.rect.center)
                 bullet_group.add(new_bullet)
                 self.timer = 0
-    
-    # 【担当B】ここに upgrade(self) メソッドを追加してください
 
 
 class Bullet(pygame.sprite.Sprite):
@@ -284,8 +272,7 @@ def main():
     enemy_group = pygame.sprite.Group()
     tower_group = pygame.sprite.Group()
     bullet_group = pygame.sprite.Group()
-    
-    # 【担当C】ここに trap_group = pygame.sprite.Group() を追加
+
 
     # 初期配置（テスト用）
     tower_group.add(Tower(14 * TILE_SIZE, 4 * TILE_SIZE))
@@ -323,6 +310,7 @@ def main():
                     # ゲージが満タンならフィーバー発動
                     if gm.fever_gauge >= 30:
                         gm.activate_fever()
+                running = False     
 
         # --- 2. 更新処理 ---
         if gm.state == STATE_PLAY:
@@ -334,16 +322,17 @@ def main():
                 spawn_interval = 50  # 【担当E】フィーバー中は出現間隔を短くする
             spawn_timer += 1
             if spawn_timer >= spawn_interval: # 【担当E】フィーバー中は出現間隔を短くする
-                spawn_timer = 0
+            
+                if spawn_timer >= 120:
+                    spawn_timer = 0
+                    is_elite = random.random() < 0.2 # 20%でエリート
+                    new_enemy = Koukaton(map_manager.waypoints, is_elite)
+                    enemy_group.add(new_enemy)
                 
-                # 【担当D】ここに確率でエリートフラグを立てる処理を追加してください
-                new_enemy = Koukaton(map_manager.waypoints)
-                enemy_group.add(new_enemy)
-
             enemy_group.update(gm)
             tower_group.update(enemy_group, bullet_group, gm.is_fever) # 【担当E】is_feverを渡す
+            tower_group.update(enemy_group, bullet_group)
             bullet_group.update()
-            # 【担当C】trap_group.update(enemy_group) を追加
 
             # 衝突判定：弾 vs こうかとん
             hits = pygame.sprite.groupcollide(bullet_group, enemy_group, True, False)
@@ -365,6 +354,7 @@ def main():
         if gm.state == STATE_PLAY:
             map_manager.draw(screen, gm.is_fever) # 【担当E】is_feverを渡す
             # 【担当C】trap_group.draw(screen) を追加
+            map_manager.draw(screen)
             tower_group.draw(screen)
             enemy_group.draw(screen)
             bullet_group.draw(screen)
