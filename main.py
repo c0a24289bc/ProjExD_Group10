@@ -468,8 +468,8 @@ def main():
                 is_elite = random.random() < 0.2
                 new_enemy = Koukaton(map_manager.waypoints, is_elite)
                 
-                new_enemy.hp += int(30 * difficulty_scale)
-                new_enemy.speed += (0.6 * difficulty_scale)
+                new_enemy.hp += int(25 * difficulty_scale)
+                new_enemy.speed += (0.55 * difficulty_scale)
                 enemy_group.add(new_enemy)
             
             enemy_group.update(gm)
